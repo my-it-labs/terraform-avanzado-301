@@ -3,9 +3,8 @@
 [← Página anterior](../M01-preparacion-entorno/M01-01-entorno-verificado.md) · [Siguiente página →](M02-01-estructura-multientorno.md)
 
 > [!NOTE]
-> **Cómo funciona este módulo.** Primero los **conceptos** de organización de un proyecto IaC,
-> luego ves **en la herramienta** cómo se recorre la estructura, y después la construyes tú en
-> el **laboratorio**. Cerramos con conclusiones, comprobación y reto.
+> **Cómo funciona este módulo.** Primero la **teoría**, luego la **demostración guiada** del
+> formador, y después **practicas tú** en el laboratorio.
 
 ## Qué aprenderás
 
@@ -13,14 +12,50 @@
 - Cómo separar lo común del código de lo que cambia por entorno (**variables**).
 - Convenciones de **nomenclatura** y buenas prácticas organizativas.
 
-## Contexto
+## Teoría
 
-- Un proyecto de juguete cabe en un solo archivo; uno real, no: necesita estructura.
-- La meta es **no duplicar** código por entorno, sino parametrizarlo.
-- Esta organización es la base sobre la que montaremos módulos (M04), estado remoto (M08) y CI/CD (M10).
-- Trabajo principalmente **local** (editor + `terraform fmt`/`validate`): no consume AWS.
+La idea central: **una sola receta (código), varias despensas (variables)**. El código que
+describe la infraestructura es el mismo; lo que cambia por entorno son los valores (tamaños,
+nombres, número de recursos), que viven en archivos `*.tfvars` separados.
 
-## Tabla de ejercicios
+| Archivo | Qué contiene |
+|---------|--------------|
+| `main.tf` | Los recursos y la lógica (igual en todos los entornos) |
+| `variables.tf` | La **declaración** de las variables (qué se puede parametrizar) |
+| `terraform.tfvars` | Los **valores** concretos de ese entorno |
+
+> [!NOTE]
+> **No confundas declarar con asignar.** `variables.tf` declara que existe una variable
+> `environment`; `terraform.tfvars` le da el valor `"dev"`. Lo primero es la forma; lo segundo, el contenido.
+
+Una convención de **nomenclatura** consistente (p. ej. `proyecto-entorno-recurso`) evita choques
+de nombres entre entornos y hace el inventario legible.
+
+## Demostración guiada
+
+> Recorrido del formador. Trabajo local (editor + `terraform`), no consume AWS.
+
+1. **Recorrido por la estructura.** En el explorador se ve una carpeta `environments/` con una
+   subcarpeta por entorno (`dev`, `test`, `prod`), cada una con su `terraform.tfvars`:
+
+```text
+environments/
+├── dev/
+│   ├── main.tf
+│   ├── variables.tf
+│   └── terraform.tfvars
+├── test/
+│   └── …
+└── prod/
+    └── …
+```
+
+2. **Misma receta, distinta despensa.** Se muestra cómo el mismo `main.tf` produce nombres
+   distintos (`tfadv-dev`, `tfadv-prod`) solo cambiando el `terraform.tfvars`.
+3. **Validación local.** `terraform fmt` deja el estilo canónico e `init -backend=false` +
+   `validate` confirman que la configuración es coherente sin necesitar credenciales.
+
+## Ahora practica tú
 
 | Lab | Título | Qué harás |
 |-----|--------|-----------|

@@ -1,121 +1,100 @@
-# M12-01 — Escenarios de incidencia
+# M12-01 — Escenarios de incidencias
 
 [← Página anterior](README.md) · [Siguiente página →](../M13-terraform-ansible/README.md)
 
-Tarde o temprano algo falla: una variable mal, una dependencia imposible, un estado que no
-coincide con la realidad. Saber diagnosticar con método vale más que memorizar errores. En este
-laboratorio reproduces y resuelves varios escenarios típicos. La mayoría es local; alguno usa AWS.
-
-### Objetivos
-
-- Aplicar un **método** de diagnóstico: leer el error, reproducir, aislar, corregir.
-- Usar `TF_LOG` para depurar el comportamiento del provider.
-- Resolver dependencias circulares, variables incorrectas y drift.
-
----
-
-## Conceptos
-
-| Herramienta | Para qué |
-|-------------|----------|
-| Mensaje de error | Suele indicar archivo, línea y causa. **Léelo entero**, no solo la última frase. |
-| `terraform validate` | Detecta errores de configuración antes de aplicar |
-| `TF_LOG=DEBUG` / `TRACE` | Traza detallada del provider y las llamadas a la API |
-| `terraform plan` | Revela drift y diferencias entre código y realidad |
-
-> [!IMPORTANT]
-> **Método > prueba y error.** Relanzar sin leer es la trampa. Lee el error, forma una hipótesis,
-> reprodúcela en pequeño, corrige y verifica.
-
-## En la herramienta
-
-Trabajarás sobre todo en la terminal, leyendo errores y activando `TF_LOG`. Cuando un escenario
-toque AWS (drift), la **consola** te sirve para ver el cambio que provocó la diferencia.
-
-## Laboratorio
+> Práctica del módulo. La teoría y la demo están en el [README del módulo](README.md).
 
 ### Objetivo
 
-Reproducir y resolver tres escenarios con método.
+Resolver una batería de errores preparados aplicando el método **leer → reproducir → aislar →
+corregir**. Mayormente local (`validate`/`plan`).
+
+### Prerrequisitos
+
+- Dev container (M01). Para los escenarios de estado puede hacer falta credenciales.
 
 ### En qué consiste
 
-Cada escenario es un fallo provocado; tu trabajo es diagnosticar y corregir.
+Reproduces cada escenario, lees el error y lo corriges.
 
-### 1 — Variable obligatoria sin valor
+### 1 — Dependencia circular
 
-**Acción:** Declara una variable sin default y referénciala; ejecuta `terraform plan` sin pasarla:
+**Acción:** Crea dos recursos que se referencian mutuamente y ejecuta `terraform validate`:
 
 ```hcl
-variable "bucket_name" { type = string }
+resource "aws_s3_bucket" "a" {
+  bucket = "tfadv-cycle-a-${aws_s3_bucket.b.id}"
+}
+resource "aws_s3_bucket" "b" {
+  bucket = "tfadv-cycle-b-${aws_s3_bucket.a.id}"
+}
+```
+
+**Por qué:** Reproduces el ciclo de dependencias clásico.
+**Resultado esperado:** Error `Cycle: ...`. **Corrige** rompiendo la referencia (nombres independientes).
+
+### 2 — Variable inválida
+
+**Acción:** Declara una variable con `validation` y pásale un valor que no cumpla:
+
+```hcl
+variable "environment" {
+  type = string
+  validation {
+    condition     = contains(["dev", "test", "prod"], var.environment)
+    error_message = "environment debe ser dev, test o prod."
+  }
+}
 ```
 
 ```bash
-terraform plan   # falla: no value for required variable
+terraform plan -var "environment=staging"
 ```
 
-**Por qué:** Es el error de configuración más común.
-**Resultado esperado:** Diagnosticas que falta el valor y lo aportas (`-var`, `tfvars` o default).
+**Por qué:** Ves cómo `validation` atrapa valores incorrectos con un mensaje claro.
+**Resultado esperado:** Error con tu `error_message`. **Corrige** pasando un valor válido.
 
-### 2 — Dependencia circular
+### 3 — Estado bloqueado
 
-**Acción:** Crea dos recursos que se referencien mutuamente (A usa un atributo de B y B uno de A) y
-ejecuta `terraform plan`.
-**Por qué:** Terraform no puede ordenar el grafo y lo dice explícitamente (`Cycle: ...`).
-**Resultado esperado:** Identificas el ciclo y lo rompes (eliminando una referencia o introduciendo
-un recurso intermedio / `depends_on` bien planteado).
+**Acción:** Con un `apply` en curso (o un lock dejado), lanza otro `plan` en el mismo entorno.
+**Por qué:** Reproduces `Error acquiring the state lock`.
+**Resultado esperado:** Mensaje de lock con su ID. **Corrige** esperando o liberando el lock con cuidado.
 
-### 3 — Depurar con TF_LOG
+### 4 — Error oscuro: sube el log
 
-**Acción:**
+**Acción:** Ante un error poco claro de provider:
 
 ```bash
 TF_LOG=DEBUG terraform plan 2> debug.log
-less debug.log
+# busca en debug.log la llamada que falla
+unset TF_LOG
 ```
 
-**Por qué:** Cuando el error del provider es opaco, la traza muestra las llamadas reales a la API.
-**Resultado esperado:** Localizas en el log la operación que falla (permiso, parámetro, región).
-
-### 4 — Drift (si tienes AWS en la ventana)
-
-**Acción:** Con un recurso aplicado, cambia algo en la **consola AWS** y ejecuta `terraform plan`.
-**Por qué:** Reproduces la diferencia realidad/estado.
-**Resultado esperado:** `plan` muestra el drift; decides reconciliar (re-aplicar) o ajustar el código.
-
-> [!TIP]
-> Acuérdate de bajar el nivel de log (`unset TF_LOG`) al acabar: `TRACE`/`DEBUG` son muy verbosos.
-
-## Conclusiones
-
-- El error de Terraform casi siempre dice la verdad: léelo entero.
-- `validate` atrapa errores pronto; `TF_LOG` destapa los del provider.
-- Método: leer → reproducir → aislar → corregir → verificar.
+**Por qué:** El log detallado muestra la petición al provider que está fallando.
+**Resultado esperado:** Localizas la causa en `debug.log` y apagas el log al terminar.
 
 ## Comprueba tu entendimiento
 
-**Variable resuelta**
-Tras aportar el valor, ejecuta `terraform plan`.
-→ Ya no se queja de la variable obligatoria.
+**Ciclo resuelto**
+Tras corregir el escenario 1, ejecuta `terraform validate`.
+→ Responde válido, sin `Cycle`.
 
-**Ciclo roto**
-Tras corregir la dependencia, ejecuta `terraform validate`.
-→ No reporta `Cycle`.
+**Validación funciona**
+Pasa un `environment` inválido y luego uno válido.
+→ El primero falla con tu mensaje; el segundo pasa.
 
 ## Reto
 
-### 1 — Bloqueo de estado "fantasma"
+### 1 — Estado corrupto
 
-Un `apply` se cortó y ahora todo dice `Error acquiring the state lock`. ¿Qué compruebas antes de
-forzar nada?
+Si el `.tfstate` se corrompe (JSON inválido), ¿qué pasos de recuperación seguirías?
 
 <details>
 <summary>Ver solución</summary>
 
-Primero confirma que **no hay otra operación en curso** (otra persona/run). Si el lock quedó
-huérfano, en Terraform Cloud puedes liberarlo desde la UI del workspace; con backend que lo
-soporte, `terraform force-unlock <LOCK_ID>` como último recurso. Nunca fuerces si alguien podría
-estar aplicando.
+Restaura desde el backup que Terraform deja (`*.tfstate.backup`) o desde el historial de versiones
+del backend remoto (TFC guarda versiones). Si no, reconstruye con `import`. Nunca edites el JSON a
+mano salvo último recurso y con copia previa.
 
 </details>
 
@@ -123,7 +102,7 @@ estar aplicando.
 
 | Síntoma | Causa probable | Cómo arreglarlo |
 |---------|----------------|-----------------|
-| Relanzas y vuelve a fallar igual | No leíste el error completo | Lee archivo/línea/causa; forma una hipótesis |
-| `Cycle:` en el grafo | Dependencia circular | Rompe una referencia o reordena con un recurso intermedio |
-| Logs ilegibles | `TF_LOG` muy alto y sin redirigir | Usa `TF_LOG=DEBUG ... 2> debug.log` y revisa el archivo |
-| `plan` siempre muestra cambios | Drift o atributos calculados | Identifica el origen; reconcilia o ajusta el código |
+| `Cycle` | Recursos que se referencian en círculo | Rompe la referencia mutua |
+| `Error acquiring the state lock` | Otra operación tiene el estado | Espera; libera el lock solo si estás seguro |
+| `TF_LOG` no cambia nada | Mal escrito o no exportado | `export TF_LOG=DEBUG` (o prefijo en la línea) |
+| `debug.log` enorme e ilegible | DEBUG es muy verboso | Filtra por el recurso/acción del error |

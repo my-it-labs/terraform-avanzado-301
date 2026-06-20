@@ -2,48 +2,16 @@
 
 [← Página anterior](README.md) · [Siguiente página →](../M06-expresiones-avanzadas/README.md)
 
-Un módulo útil acaba usándose en varios proyectos. A partir de ahí necesita **versiones**: sus
-consumidores deben poder fijar exactamente qué código usan y actualizar cuando quieran, no cuando
-tú toques `main`. En este laboratorio publicas un módulo, lo versionas con un tag y lo consumes
-por referencia. Es trabajo de Git: no consume AWS.
-
-### Objetivos
-
-- Publicar un módulo en un repositorio Git.
-- Versionarlo con **tags** siguiendo **Semantic Versioning**.
-- Consumir el módulo por `ref` y actualizar la versión de forma controlada.
-
----
-
-## Conceptos
-
-**Semantic Versioning (SemVer):** `MAJOR.MINOR.PATCH`.
-
-| Cambias… | Subes… | Ejemplo |
-|----------|--------|---------|
-| Algo incompatible (rompes la interfaz) | **MAJOR** | `1.4.2 → 2.0.0` |
-| Funcionalidad compatible (nuevo input opcional) | **MINOR** | `1.4.2 → 1.5.0` |
-| Arreglo sin cambiar la interfaz | **PATCH** | `1.4.2 → 1.4.3` |
-
-El consumidor fija la versión en el `source` del módulo. Así, aunque tú publiques `v2.0.0`, su
-infraestructura no cambia hasta que él decide actualizar.
-
-> [!IMPORTANT]
-> Consumir un módulo desde `main` (sin `ref`) es pedir una rotura sorpresa: cualquier commit
-> tuyo afecta a quien lo use. **Pinea siempre una versión.**
-
-## En la herramienta
-
-En GitHub verás el módulo publicado con sus **tags** (`v1.0.0`, `v1.1.0`) en la sección de
-*Releases/Tags*. En el editor, el bloque `module` apunta a una `ref` concreta; al cambiar la `ref`
-y reinicializar, Terraform descarga esa versión exacta.
-
-## Laboratorio
+> Práctica del módulo. La teoría y la demo están en el [README del módulo](README.md).
 
 ### Objetivo
 
 Publicar el módulo S3 (de M04) en un repo, etiquetarlo `v1.0.0`, consumirlo por `ref`, publicar
-`v1.1.0` y actualizar de forma controlada.
+`v1.1.0` y actualizar de forma controlada. Es trabajo de Git: no consume AWS.
+
+### Prerrequisitos
+
+- El módulo S3 de M04 y un repositorio (o subcarpeta) donde publicarlo.
 
 ### En qué consiste
 
@@ -51,7 +19,7 @@ Versionas un módulo con tags y demuestras que el consumidor controla cuándo ad
 
 ### 1 — Publica el módulo y etiqueta v1.0.0
 
-**Acción:** Con el módulo S3 en su repositorio (o subcarpeta de módulos versionada):
+**Acción:**
 
 ```bash
 git tag v1.0.0
@@ -103,12 +71,6 @@ terraform plan
 **Por qué:** La actualización ocurre **cuando tú decides**, no automáticamente.
 **Resultado esperado:** `init -upgrade` trae `v1.1.0`; `plan` muestra solo lo que cambia.
 
-## Conclusiones
-
-- Un módulo versionado es un **producto**: el consumidor fija y actualiza versiones.
-- **SemVer** comunica el impacto del cambio (MAJOR rompe, MINOR añade, PATCH arregla).
-- Pinear `ref` evita roturas sorpresa; `init -upgrade` actualiza de forma explícita.
-
 ## Comprueba tu entendimiento
 
 **La versión está fijada**
@@ -129,9 +91,9 @@ pero no 2.0"?
 <details>
 <summary>Ver solución</summary>
 
-Con un módulo del Registry usas el argumento `version` y restricciones de versión:
-`version = "~> 1.0"` (admite `>=1.0, <2.0`). Así recibes parches y minors compatibles, pero no el
-MAJOR que podría romper. (Con `source` de Git se fija por `ref`, sin rangos.)
+Con un módulo del Registry usas el argumento `version` y restricciones: `version = "~> 1.0"`
+(admite `>=1.0, <2.0`). Así recibes parches y minors compatibles, pero no el MAJOR que podría
+romper. (Con `source` de Git se fija por `ref`, sin rangos.)
 
 </details>
 

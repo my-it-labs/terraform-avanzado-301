@@ -1,87 +1,40 @@
 # M07-01 — Operar el estado
 
-[← Página anterior](README.md) · [Siguiente página →](../M08-terraform-cloud/README.md)
+[← Página anterior](README.md) · [Siguiente página →](M07-02-analisis-drift.md)
 
-El estado (`.tfstate`) es la memoria de Terraform: la correspondencia entre tu código y los
-recursos reales. Operarlo bien te permite renombrar, reorganizar y diagnosticar sin destruir nada.
-En este laboratorio creas un recurso mínimo y practicas las operaciones de estado y la detección
-de drift.
-
-> [!IMPORTANT]
-> Este lab crea un bucket S3 real. Trabaja dentro de la ventana de clase y ejecuta
-> `terraform destroy` al terminar.
-
-### Objetivos
-
-- Inspeccionar el estado con `state list` y `state show`.
-- Renombrar un recurso en el estado con `state mv` (sin recrearlo).
-- Detectar **drift** provocado fuera de Terraform.
-
----
-
-## Conceptos
-
-El `terraform state` no se edita a mano: tiene comandos para operarlo de forma segura.
-
-| Comando | Qué hace |
-|---------|----------|
-| `state list` | Lista los recursos que Terraform gestiona |
-| `state show <addr>` | Muestra los atributos de un recurso en el estado |
-| `state mv <a> <b>` | Cambia la **dirección** de un recurso (renombrar/refactor) sin recrearlo |
-| `state rm <addr>` | Deja de gestionar un recurso (NO lo destruye en AWS) |
-
-**Drift** = la realidad y el estado difieren porque alguien cambió algo **fuera** de Terraform
-(p. ej. desde la consola AWS). `terraform plan` lo detecta y propone reconciliar.
-
-> [!NOTE]
-> `state rm` **olvida** (Terraform deja de gestionarlo, el recurso sigue en AWS). `destroy`
-> **elimina** el recurso real. No los confundas.
-
-## En la herramienta
-
-Aquí entra la **consola de AWS**: provocarás el drift cambiando una etiqueta del bucket desde la
-consola y verás cómo `terraform plan`, sin que tú toques el código, detecta la diferencia y
-propone deshacerla. Es la forma visual de entender qué es el estado.
-
-## Laboratorio
+> Práctica del módulo. La teoría y la demo están en el [README del módulo](README.md).
 
 ### Objetivo
 
-Crear un bucket, operar su entrada en el estado y detectar un drift introducido desde la consola.
+Inspeccionar el estado y **renombrar un recurso con `state mv`** sin que Terraform lo recree.
+
+### Prerrequisitos
+
+- Dev container (M01) y credenciales activas (ventana AWS).
 
 ### En qué consiste
 
-Aplicas un recurso mínimo, lo inspeccionas, lo renombras en el estado y provocas drift.
+Aplicas un recurso mínimo, lo inspeccionas, lo renombras en el código y reconcilias el estado con
+`state mv` para que el `plan` quede limpio.
 
-### 1 — Crea un recurso mínimo
+### 1 — Aplica un recurso mínimo
 
-**Acción:** En un directorio de trabajo:
+**Acción:** En `labs-sandbox/m07/main.tf` define un bucket y aplica:
 
 ```hcl
-terraform {
-  required_providers {
-    aws = { source = "hashicorp/aws", version = "~> 5.0" }
-  }
-}
-provider "aws" {}
-
-resource "aws_s3_bucket" "logs" {
-  bucket = "tfadv-state-${replace(timestamp(), ":", "")}"
-  tags   = { Name = "demo-estado" }
+resource "aws_s3_bucket" "data" {
+  bucket = "tfadv-dev-state-demo-eu-west-1"
 }
 ```
-
-Aplica:
 
 ```bash
-terraform init && terraform apply
+cd labs-sandbox/m07
+terraform init
+terraform apply
 ```
 
-**Por qué:** Necesitas un recurso real cuyo estado puedas inspeccionar.
-**Resultado esperado:** Se crea el bucket y aparece en el estado.
-
-> [!TIP]
-> Si prefieres un nombre fijo y único, usa `random_id` en vez de `timestamp()`.
+**Por qué:** Necesitas un recurso real en el estado para operarlo.
+**Resultado esperado:** El bucket existe y aparece en el estado.
 
 ### 2 — Inspecciona el estado
 
@@ -89,79 +42,72 @@ terraform init && terraform apply
 
 ```bash
 terraform state list
-terraform state show aws_s3_bucket.logs
+terraform state show aws_s3_bucket.data
 ```
 
-**Por qué:** Ves qué gestiona Terraform y los atributos guardados.
-**Resultado esperado:** `state list` muestra `aws_s3_bucket.logs`; `state show` lista sus atributos.
+**Por qué:** Ves qué hay registrado y los atributos reales del recurso.
+**Resultado esperado:** `state list` muestra `aws_s3_bucket.data`; `state show` sus atributos.
 
-### 3 — Renombra el recurso en el estado
+### 3 — Renombra el recurso en el código
 
-**Acción:** Cambia en el código `resource "aws_s3_bucket" "logs"` por `"app_logs"` y mueve el estado:
+**Acción:** Cambia el nombre lógico (no el bucket real) de `data` a `primary`:
 
-```bash
-terraform state mv aws_s3_bucket.logs aws_s3_bucket.app_logs
-terraform plan
+```hcl
+resource "aws_s3_bucket" "primary" {
+  bucket = "tfadv-dev-state-demo-eu-west-1"
+}
 ```
-
-**Por qué:** `state mv` actualiza la dirección sin recrear el recurso.
-**Resultado esperado:** `plan` no propone crear/destruir nada (solo cambió el nombre lógico).
-
-### 4 — Provoca drift desde la consola AWS
-
-**Acción:** En la **consola de AWS**, edita una etiqueta del bucket (cambia `Name` a otro valor).
-Luego:
 
 ```bash
 terraform plan
 ```
 
-**Por qué:** Reproduces un cambio hecho fuera de Terraform.
-**Resultado esperado:** `plan` detecta la diferencia y propone devolver la etiqueta al valor del código.
+**Por qué:** Quieres ver qué cree Terraform que debe hacer ante el renombrado.
+**Resultado esperado:** El `plan` propone **destruir** `data` y **crear** `primary` (no es lo que queremos).
 
-### 5 — Limpia
+### 4 — Reconcilia con state mv
 
 **Acción:**
 
 ```bash
-terraform destroy
+terraform state mv aws_s3_bucket.data aws_s3_bucket.primary
+terraform plan
 ```
 
-**Por qué:** Cuidas la ventana de acceso y el coste.
-**Resultado esperado:** El bucket se elimina y el estado queda vacío.
+**Por qué:** `state mv` mueve el recurso en el estado sin tocar AWS; así el código y el estado vuelven a casar.
+**Resultado esperado:** `plan` ahora dice **No changes**: el recurso real no se ha tocado.
 
-## Conclusiones
+### 5 — Limpia
 
-- El estado es la memoria de Terraform; se opera con comandos, nunca a mano.
-- `state mv` renombra sin recrear; `state rm` olvida sin destruir.
-- `plan` detecta **drift** y propone reconciliar realidad y código.
+**Acción:** `terraform destroy`.
+**Por qué:** No dejes recursos tras la práctica.
+**Resultado esperado:** El bucket se elimina.
+
+> [!WARNING]
+> Crea y destruye dentro de la ventana de clase.
 
 ## Comprueba tu entendimiento
 
-**Inspección del estado**
-Ejecuta `terraform state list`.
-→ Aparece el bucket gestionado.
+**Renombrado sin recrear**
+Tras `state mv`, ejecuta `terraform plan`.
+→ Responde `No changes`.
 
-**Renombrado sin recreación**
-Tras `state mv` y editar el nombre lógico, ejecuta `terraform plan`.
-→ No propone crear ni destruir recursos.
-
-**Drift detectado**
-Cambia una etiqueta en la consola AWS y ejecuta `terraform plan`.
-→ El `plan` muestra la diferencia y propone corregirla.
+**`mv` no toca AWS**
+Compara el nombre del bucket real antes y después de `state mv`.
+→ Es el mismo: solo cambió la dirección lógica en el estado.
 
 ## Reto
 
-### 1 — Sacar un recurso de Terraform sin destruirlo
+### 1 — `rm` vs `destroy`
 
-Te piden que un bucket deje de gestionarse con Terraform pero **siga existiendo** en AWS. ¿Qué
-comando usas y qué NO debes usar?
+Quieres dejar de gestionar el bucket con Terraform pero **sin** borrarlo en AWS. ¿Qué comando usas
+y qué pasa en el siguiente `plan`?
 
 <details>
 <summary>Ver solución</summary>
 
-Usa `terraform state rm aws_s3_bucket.app_logs`: Terraform lo olvida pero el bucket permanece en
-AWS. **No** uses `destroy`, que lo eliminaría de verdad.
+`terraform state rm aws_s3_bucket.primary`: lo saca del estado pero el bucket sigue en AWS. El
+siguiente `plan` ya no lo conoce (no propone destruirlo). `destroy` sí lo eliminaría.
 
 </details>
 
@@ -169,7 +115,7 @@ AWS. **No** uses `destroy`, que lo eliminaría de verdad.
 
 | Síntoma | Causa probable | Cómo arreglarlo |
 |---------|----------------|-----------------|
-| `plan` quiere recrear tras renombrar | Cambiaste el nombre en el código sin `state mv` | Ejecuta `state mv` (o usa un bloque `moved`, M09) |
-| `BucketAlreadyExists` | Nombre de bucket no único | Usa sufijo único (`random_id`, cuenta, región) |
-| `state rm` no liberó el recurso en AWS | Es lo esperado: `rm` solo deja de gestionarlo | Para eliminarlo usa `destroy` antes del `rm` |
+| `plan` quiere recrear tras renombrar | No usaste `state mv` | Mueve la dirección con `state mv <old> <new>` |
+| `state mv` falla con direcciones | Sintaxis de la dirección | Copia la dirección exacta de `state list` |
+| Borraste el recurso por error | Usaste `destroy`/`rm` sin querer | `rm` solo olvida; `destroy` borra: revisa cuál usaste |
 | Acceso AWS falla | Fuera de la ventana | Reintenta en sesión |

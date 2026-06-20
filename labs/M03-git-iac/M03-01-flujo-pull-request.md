@@ -2,47 +2,16 @@
 
 [← Página anterior](README.md) · [Siguiente página →](../M04-modulos-reutilizables/README.md)
 
-Trabajar Terraform en equipo significa que nadie aplica cambios "a lo loco" sobre `main`: cada
-cambio entra por una rama, se revisa en un Pull Request y se mezcla cuando está validado. En este
-laboratorio recorres ese flujo de principio a fin sobre tu propio repositorio. Es trabajo de Git,
-así que no consume AWS y puedes repetirlo cuando quieras.
-
-### Objetivos
-
-- Crear una **rama** para un cambio de infraestructura y abrir un **Pull Request**.
-- Revisar el cambio y **resolver un conflicto** de código.
-- Entender por qué el **estado** no se mezcla como el código.
-
----
-
-## Conceptos
-
-En IaC, el flujo de Git es el mismo que en cualquier proyecto serio, con un matiz importante:
-
-| Elemento | Idea |
-|----------|------|
-| **Rama** | Aíslas tu cambio del código estable (`main`). |
-| **Pull Request (PR)** | Propones el cambio para que alguien lo revise antes de mezclar. |
-| **Revisión** | Otra persona valida el `plan` y el código antes del merge. |
-| **Conflicto de código** | Dos ramas tocan las mismas líneas; se resuelve editando el archivo. |
-
-> [!IMPORTANT]
-> **Código vs estado.** El **código** (`.tf`) se mezcla con Git sin problema. El **estado**
-> (`.tfstate`) NO: si dos personas aplican a la vez, no se resuelve "a mano", sino con estado
-> remoto y bloqueo (lo verás en M07 y M08). Confundir ambos es el error clásico.
-
-## En la herramienta
-
-El recorrido vive entre el editor y GitHub. En el editor trabajas la rama y el `plan`; en GitHub
-ves el Pull Request, los comentarios de revisión y el botón de merge. La idea es que **ningún
-cambio llega a `main` sin pasar por un PR revisado**, igual que en un equipo real.
-
-## Laboratorio
+> Práctica del módulo. La teoría y la demo están en el [README del módulo](README.md).
 
 ### Objetivo
 
 Llevar un cambio (añadir una etiqueta común) desde una rama hasta `main` mediante un PR, pasando
-por un conflicto y su resolución.
+por un conflicto y su resolución. Es trabajo de Git: no consume AWS.
+
+### Prerrequisitos
+
+- Tu fork y el dev container (M01). La estructura `environments/dev` de M02.
 
 ### En qué consiste
 
@@ -102,15 +71,15 @@ gh pr create --base main --head feature/etiqueta-owner \
 ```
 
 **Por qué:** El PR es el punto de revisión antes de tocar `main`.
-**Resultado esperado:** `gh` devuelve la URL del PR; puedes abrirla en el navegador.
+**Resultado esperado:** `gh` devuelve la URL del PR.
 
 > [!TIP]
-> En un equipo, aquí otra persona revisaría el `plan`. En el curso puedes auto-revisarte:
-> lee el diff con `gh pr diff` antes de mezclar.
+> En un equipo, aquí otra persona revisaría el `plan`. En el curso puedes auto-revisarte: lee el
+> diff con `gh pr diff` antes de mezclar.
 
-### 5 — Provoca un conflicto (simulación de trabajo concurrente)
+### 5 — Provoca un conflicto (trabajo concurrente)
 
-**Acción:** Simula que `main` cambió la misma línea mientras tú trabajabas:
+**Acción:** Simula que `main` cambió la misma línea mientras trabajabas:
 
 ```bash
 git switch main
@@ -125,8 +94,8 @@ git merge main
 
 ### 6 — Resuelve el conflicto y completa el merge
 
-**Acción:** Edita el archivo dejando el valor acordado (p. ej. `Owner = "plataforma"`), elimina
-los marcadores y termina:
+**Acción:** Edita el archivo dejando el valor acordado (p. ej. `Owner = "plataforma"`), elimina los
+marcadores y termina:
 
 ```bash
 git add environments/dev/main.tf
@@ -137,12 +106,6 @@ git push
 **Por qué:** El conflicto de **código** se resuelve editando y confirmando.
 **Resultado esperado:** El PR queda sin conflictos y se puede mezclar (`gh pr merge --squash`).
 
-## Conclusiones
-
-- Cada cambio de infraestructura entra por una **rama** y se revisa en un **PR**.
-- Los conflictos de **código** se resuelven editando; los de **estado**, no (M07/M08).
-- La revisión del `plan` antes del merge evita sorpresas en `main`.
-
 ## Comprueba tu entendimiento
 
 **El PR existe**
@@ -151,7 +114,7 @@ Ejecuta `gh pr status`.
 
 **Conflicto resuelto**
 Tras resolverlo, ejecuta `git status`.
-→ No quedan archivos en estado *unmerged* ni marcadores `<<<<<<<` en `main.tf`.
+→ No quedan archivos *unmerged* ni marcadores `<<<<<<<` en `main.tf`.
 
 ## Reto
 
@@ -175,5 +138,5 @@ solución no es Git: es **estado remoto con bloqueo** (Terraform Cloud, M08), qu
 |---------|----------------|-----------------|
 | `gh: command not found` | No estás en el dev container o falta auth | Usa el dev container; `gh auth login` si hiciera falta |
 | El push pide credenciales | El remoto no es tu fork | Comprueba `git remote -v`; debe apuntar a `tu-usuario/...` |
-| El conflicto reaparece tras commitear | Quedaron marcadores `<<<<<<<` sin borrar | Edita el archivo, elimina los marcadores y vuelve a `git add` |
-| Mezclaste sin revisar el `plan` | Falta el paso de revisión | Usa `gh pr diff` y, en módulos AWS, revisa el `terraform plan` antes del merge |
+| El conflicto reaparece tras commitear | Quedaron marcadores `<<<<<<<` | Edita, elimina los marcadores y vuelve a `git add` |
+| Mezclaste sin revisar el `plan` | Falta el paso de revisión | Usa `gh pr diff` y revisa el `plan` antes del merge |

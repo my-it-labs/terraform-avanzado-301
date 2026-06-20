@@ -1,28 +1,50 @@
 # M14 — Caso práctico integrador
 
-[← Página anterior](../M13-terraform-ansible/M13-01-terraform-ansible-ec2.md) · [Siguiente página →](M14-01-plataforma-integradora.md)
+[← Página anterior](../M13-terraform-ansible/M13-02-configuracion-ansible.md) · [Siguiente página →](M14-01-plataforma-integradora.md)
 
 > [!NOTE]
-> **Cómo funciona este módulo.** Es el proyecto final: pones en práctica, de forma combinada,
-> todo lo aprendido. Trabajaréis en equipo sobre un repositorio que será vuestra plataforma IaC.
+> **Cómo funciona este módulo.** Primero un **repaso** de cómo encajan las piezas, luego la
+> **demostración guiada** del recorrido final, y después **construyes tú** la plataforma completa.
 
 ## Qué aprenderás
 
-- Integrar en un solo proyecto: estructura multi-entorno, módulos reutilizables, Terraform Cloud, GitHub Actions, gestión segura de credenciales (OIDC), refactorización e integración con Ansible.
-- Operar el ciclo completo PR → `plan` → aprobación → `apply`.
+- Integrar todo lo del curso en un único repositorio funcional.
+- Tomar decisiones de arquitectura combinando módulos, entornos, estado remoto, CI/CD y seguridad.
 
-## Contexto
+## Teoría — cómo encaja todo
 
-- El resultado es un **repositorio funcional** que te llevas como base de futuros proyectos.
-- Time-box por bloque: mejor terminado que perfecto.
+Este módulo no introduce conceptos nuevos: **conecta** los anteriores. El repositorio final reúne:
+
+| Pieza | De dónde viene |
+|-------|----------------|
+| Estructura multi-entorno | M02 |
+| Módulos reutilizables y versionados | M04, M05 |
+| Expresiones dinámicas | M06 |
+| Estado remoto en Terraform Cloud | M07, M08 |
+| Refactor sin recrear | M09 |
+| Pipeline CI/CD con aprobación | M10 |
+| OIDC y mínimo privilegio | M11 |
+| Integración con Ansible | M13 |
 
 > [!IMPORTANT]
-> El proyecto despliega sobre AWS. Trabaja dentro de la sesión y destruye todo al terminar.
+> El objetivo no es "que funcione" sino que el repositorio quede **mantenible**: legible, con el
+> flujo de PR/plan/apply y sin credenciales estáticas. Es la base de tus futuros proyectos.
 
-## Tabla de ejercicios
+## Demostración guiada
+
+> Recorrido del formador por el repositorio de referencia (sin reconstruirlo en vivo).
+
+1. **Mapa del repo.** Se recorre la estructura final: `environments/`, `modules/`,
+   `.github/workflows/`, y cómo se relacionan.
+2. **Flujo de un cambio.** Se sigue un cambio real: rama → PR (plan automático) → revisión → merge →
+   apply con aprobación, todo con OIDC.
+3. **Criterios de calidad.** Se señalan los puntos que se evaluarán: módulos versionados, estado en
+   TFC, pipeline verde, sin claves estáticas.
+
+## Ahora construye tú
 
 | Lab | Título | Qué harás |
 |-----|--------|-----------|
-| M14-01 | [Plataforma IaC integradora](M14-01-plataforma-integradora.md) | Montar el proyecto completo en equipo y operarlo end-to-end |
+| M14-01 | [Plataforma integradora](M14-01-plataforma-integradora.md) | Ensamblar el repositorio completo aplicando todo lo aprendido |
 
-→ Empieza por **[M14-01 — Plataforma IaC integradora](M14-01-plataforma-integradora.md)**.
+→ Empieza por **[M14-01 — Plataforma integradora](M14-01-plataforma-integradora.md)**.

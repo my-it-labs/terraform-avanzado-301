@@ -2,66 +2,16 @@
 
 [← Página anterior](README.md) · [Siguiente página →](../M03-git-iac/README.md)
 
-Un proyecto Terraform real se despliega en varios entornos (dev, test, prod) que comparten el
-mismo código pero cambian sus valores. En este laboratorio montas esa estructura y la validas.
-No creas infraestructura en AWS: es trabajo de organización y validación, así que puedes
-repetirlo cuando quieras.
-
-### Objetivos
-
-- Montar un layout de repositorio preparado para **dev / test / prod**.
-- Separar lo común (código) de lo que cambia por entorno (**variables**).
-- Validar la estructura con `terraform fmt` y `terraform validate`.
-
----
-
-## Conceptos
-
-La idea central: **una sola receta (código), varias despensas (variables)**. El código que
-describe la infraestructura es el mismo; lo que cambia por entorno son los valores (tamaños,
-nombres, número de recursos), que viven en archivos `*.tfvars` separados.
-
-| Archivo | Qué contiene |
-|---------|--------------|
-| `main.tf` | Los recursos y la lógica (igual en todos los entornos) |
-| `variables.tf` | La **declaración** de las variables (qué se puede parametrizar) |
-| `terraform.tfvars` | Los **valores** concretos de ese entorno |
-
-> [!NOTE]
-> **No confundas declarar con asignar.** `variables.tf` declara que existe una variable
-> `environment`; `terraform.tfvars` le da el valor `"dev"`. Lo primero es la forma; lo segundo,
-> el contenido.
-
-Una convención de **nomenclatura** consistente (por ejemplo `proyecto-entorno-recurso`) evita
-choques de nombres entre entornos y hace el inventario legible.
-
-## En la herramienta
-
-### Recorrido por la estructura
-
-Al abrir el explorador de archivos del Codespace, la estructura del proyecto deja claro de un
-vistazo qué es común y qué es por entorno: una carpeta `environments/` con una subcarpeta por
-cada entorno, y cada una con su `terraform.tfvars`. El código compartido se reutiliza; los
-valores viven junto a cada entorno:
-
-```text
-environments/
-├── dev/
-│   ├── main.tf
-│   ├── variables.tf
-│   └── terraform.tfvars
-├── test/
-│   └── …
-└── prod/
-    └── …
-```
-
-## Laboratorio
+> Práctica del módulo. La teoría y la demo están en el [README del módulo](README.md).
 
 ### Objetivo
 
-Crear una estructura `environments/{dev,test,prod}` con variables por entorno y dejarla
-formateada y validada.
+Montar una estructura `environments/{dev,test,prod}` con variables por entorno y dejarla
+formateada y validada. No crea infraestructura en AWS: puedes repetirlo cuando quieras.
+
+### Prerrequisitos
+
+- Dev container abierto (M01). No necesitas credenciales de AWS para este lab.
 
 ### En qué consiste
 
@@ -70,7 +20,7 @@ compruebas que todo está bien formado con `fmt` y `validate`.
 
 ### 1 — Crea la estructura de carpetas
 
-**Acción:** En la terminal del Codespace, dentro de tu repo, crea las carpetas:
+**Acción:**
 
 ```bash
 mkdir -p environments/dev environments/test environments/prod
@@ -81,7 +31,7 @@ mkdir -p environments/dev environments/test environments/prod
 
 ### 2 — Declara las variables comunes
 
-**Acción:** Crea `environments/dev/variables.tf` con:
+**Acción:** Crea `environments/dev/variables.tf`:
 
 ```hcl
 variable "project" {
@@ -149,7 +99,7 @@ output "name_prefix" {
 
 ### 5 — Formatea y valida
 
-**Acción:** Desde `environments/dev`, ejecuta:
+**Acción:**
 
 ```bash
 cd environments/dev
@@ -159,22 +109,15 @@ terraform validate
 ```
 
 **Por qué:** `fmt` deja el estilo canónico; `init -backend=false` prepara el provider sin
-necesitar credenciales; `validate` confirma que la configuración es coherente.
+credenciales; `validate` confirma que la configuración es coherente.
 **Resultado esperado:** `terraform validate` responde `Success! The configuration is valid.`
 
 ### 6 — Replica en test y prod
 
-**Acción:** Copia los archivos de `dev` a `test` y `prod`, y cambia en cada `terraform.tfvars`
-el valor de `environment` (`test`, `prod`).
+**Acción:** Copia los archivos de `dev` a `test` y `prod`, y cambia en cada `terraform.tfvars` el
+valor de `environment` (`test`, `prod`).
 **Por qué:** Mismo código, distinta despensa: así se gestionan varios entornos sin duplicar lógica.
 **Resultado esperado:** Cada entorno produce su propio `name_prefix` (`tfadv-test`, `tfadv-prod`).
-
-## Conclusiones
-
-- Una estructura multi-entorno separa **código común** de **valores por entorno**.
-- `variables.tf` declara; `terraform.tfvars` asigna.
-- Una **nomenclatura** consistente evita choques y hace legible el inventario.
-- `fmt` + `validate` te dan confianza antes de aplicar nada.
 
 ## Comprueba tu entendimiento
 
@@ -190,15 +133,15 @@ Compara el valor de `environment` en los `terraform.tfvars` de dev, test y prod.
 
 ### 1 — Evitar repetir la región
 
-Ahora `aws_region` está repetida en cada entorno. ¿Cómo evitarías duplicarla si los tres
-entornos usan la misma región por defecto?
+Ahora `aws_region` está repetida en cada entorno. ¿Cómo evitarías duplicarla si los tres entornos
+usan la misma región por defecto?
 
 <details>
 <summary>Ver solución</summary>
 
-Da un `default` a `aws_region` en `variables.tf` y **no** la pongas en los `terraform.tfvars`
-salvo en el entorno que necesite una región distinta. Así el valor por defecto se hereda y solo
-se sobreescribe donde haga falta. (En M04 verás cómo encapsular esto en un módulo.)
+Da un `default` a `aws_region` en `variables.tf` y **no** la pongas en los `terraform.tfvars` salvo
+en el entorno que necesite una región distinta. Así el valor por defecto se hereda y solo se
+sobreescribe donde haga falta.
 
 </details>
 
@@ -206,7 +149,7 @@ se sobreescribe donde haga falta. (En M04 verás cómo encapsular esto en un mó
 
 | Síntoma | Causa probable | Cómo arreglarlo |
 |---------|----------------|-----------------|
-| `terraform validate` pide credenciales o acceso a AWS | Hiciste `init` sin `-backend=false` o intentaste `plan`/`apply` | Para validar la estructura basta `init -backend=false` + `validate`; no necesitas AWS |
-| `Error: Reference to undeclared input variable` | Usas una variable que no está en `variables.tf` | Declárala en `variables.tf` antes de usarla |
-| `terraform fmt` cambia muchos archivos | El código no estaba en estilo canónico | Es normal; revisa el diff y confirma los cambios |
-| Valores de un entorno aparecen en otro | Copiaste `terraform.tfvars` sin cambiar `environment` | Ajusta el valor de `environment` en cada carpeta |
+| `terraform validate` pide credenciales o acceso a AWS | Hiciste `init` sin `-backend=false` o intentaste `plan`/`apply` | Para validar la estructura basta `init -backend=false` + `validate` |
+| `Error: Reference to undeclared input variable` | Usas una variable que no está en `variables.tf` | Declárala antes de usarla |
+| `terraform fmt` cambia muchos archivos | El código no estaba en estilo canónico | Es normal; revisa el diff y confirma |
+| Valores de un entorno aparecen en otro | Copiaste `terraform.tfvars` sin cambiar `environment` | Ajusta el valor en cada carpeta |

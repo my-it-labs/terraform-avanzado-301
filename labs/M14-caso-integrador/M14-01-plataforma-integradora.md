@@ -1,133 +1,92 @@
-# M14-01 — Plataforma IaC integradora
+# M14-01 — Plataforma integradora
 
-[← Página anterior](README.md) · [Volver al índice →](../../README.md)
+[← Página anterior](README.md) · [Siguiente página →](../../README.md)
 
-Este es el proyecto que reúne todo el curso. En equipo, construís un repositorio que combina
-estructura multi-entorno, módulos versionados, estado remoto, CI/CD con OIDC, refactor seguro e
-integración con Ansible. Al terminar tendréis una **plataforma IaC** reutilizable como base de
-futuros proyectos.
-
-> [!IMPORTANT]
-> El proyecto despliega sobre AWS. Trabajad dentro de la sesión y ejecutad `terraform destroy` al
-> terminar. Repartid el trabajo por bloques y haced *time-box*: mejor terminado que perfecto.
-
-### Objetivos
-
-- Integrar lo aprendido en M02–M13 en un único repositorio operativo.
-- Operar el ciclo completo: rama → PR → `plan` → aprobación → `apply`.
-- Entregar una plataforma con estado remoto, módulos, CI/CD seguro y configuración con Ansible.
-
----
-
-## Conceptos
-
-No hay conceptos nuevos: el reto es **encajar las piezas** que ya conoces.
-
-| Bloque | Módulo de origen |
-|--------|------------------|
-| Estructura dev/test/prod | M02 |
-| Flujo Git + PR | M03 |
-| Módulos reutilizables y versionados | M04, M05 |
-| Expresiones dinámicas | M06 |
-| Estado (operación + remoto en TFC) | M07, M08 |
-| Import / refactor con `moved` | M09 |
-| CI/CD con GitHub Actions | M10 |
-| Seguridad: OIDC + mínimo privilegio | M11 |
-| Provisión + configuración con Ansible | M13 |
-
-> [!NOTE]
-> Repartid roles en el equipo (módulos, pipeline, seguridad, Ansible) y mezclad por PRs: es la
-> forma de trabajar de un equipo de plataforma real.
-
-## En la herramienta
-
-Usaréis todas las interfaces del curso de forma combinada: **GitHub** (PRs, Actions),
-**Terraform Cloud** (estado y runs) y la **consola de AWS** (recursos creados). El recorrido es el
-ciclo de vida completo de un cambio de infraestructura, de la rama al `apply` aprobado.
-
-## Laboratorio
+> Práctica del módulo. El repaso y la demo están en el [README del módulo](README.md).
 
 ### Objetivo
 
-Construir y operar la plataforma IaC integradora en equipo.
+Ensamblar un repositorio Terraform completo y mantenible que combine todo lo del curso: multi-entorno,
+módulos versionados, estado en TFC, pipeline con aprobación, OIDC e integración con Ansible.
+
+### Prerrequisitos
+
+- Haber completado M01–M13. Credenciales activas (ventana AWS) para los `apply`.
 
 ### En qué consiste
 
-Montáis el repositorio combinando los bloques y lo operáis end-to-end con un cambio real.
+Trabajas por incrementos (un PR por bloque), validando con el pipeline en cada paso, hasta tener la
+plataforma funcionando de punta a punta.
 
 ### 1 — Estructura y módulos
 
-**Acción:** Partid de la estructura multi-entorno (M02) y consumid los módulos versionados
-(naming, tagging, S3) por `ref` (M04, M05).
-**Por qué:** Base ordenada y reutilizable.
-**Resultado esperado:** `environments/{dev,test}` consumen módulos pineados por versión.
+**Acción:** Parte de `environments/{dev,prod}` y consume los módulos `naming`, `tagging` y `s3`
+**por versión** (`?ref=vX.Y.Z`).
+**Por qué:** Reúne M02, M04 y M05: base organizada y reutilizable.
+**Resultado esperado:** Ambos entornos `validate` y `plan` sin errores.
 
-### 2 — Estado remoto en Terraform Cloud
+### 2 — Estado remoto
 
-**Acción:** Configurad el backend `cloud` con un workspace por entorno (M08) y las credenciales
-como variables sensibles del workspace.
-**Por qué:** Estado compartido con locking para trabajar en equipo.
-**Resultado esperado:** El estado vive en TFC; los runs quedan registrados.
+**Acción:** Configura un workspace de TFC por entorno (`tfadv-dev`, `tfadv-prod`) y migra el estado.
+**Por qué:** Reúne M07–M08: estado compartido con locking.
+**Resultado esperado:** Los estados viven en TFC; el locking funciona.
 
-### 3 — Pipeline CI/CD con OIDC
+### 3 — Pipeline con OIDC y aprobación
 
-**Acción:** Añadid el workflow (M10) con `fmt`/`validate`/`plan` en PR y `apply` aprobado en el
-merge, autenticando por **OIDC** (M11) sin secretos estáticos.
-**Por qué:** Despliegues automatizados, auditables y sin claves de larga vida.
-**Resultado esperado:** Una PR dispara `plan`; el merge pide aprobación y aplica vía rol OIDC.
+**Acción:** Añade los workflows de `plan` (en PR) y `apply` (en merge, environment protegido) usando
+**OIDC** (sin claves).
+**Por qué:** Reúne M10–M11: despliegue controlado y seguro.
+**Resultado esperado:** Un PR dispara `plan`; el merge espera aprobación y aplica con rol asumido.
 
-### 4 — Un cambio real end-to-end
+### 4 — Capa de cómputo + Ansible
 
-**Acción:** Implementad un cambio (p. ej. añadir un bucket parametrizado con `for_each`, M06) por
-rama → PR → revisión → merge → apply aprobado.
-**Por qué:** Demostráis el ciclo completo de cambio controlado.
-**Resultado esperado:** El cambio llega a AWS solo tras revisión y aprobación.
+**Acción:** Añade una EC2 (free tier) y un playbook de Ansible que la configure, con el inventario
+generado desde los outputs.
+**Por qué:** Reúne M13: provisión + configuración separadas.
+**Resultado esperado:** Tras el flujo, el servicio responde por HTTP.
 
-### 5 — Capa de configuración con Ansible (opcional según tiempo)
+### 5 — Refactor controlado
 
-**Acción:** Si creáis una EC2, configuradla con Ansible a partir de los outputs (M13).
-**Por qué:** Cerráis el círculo provisión + configuración.
-**Resultado esperado:** Servicio configurado sobre la instancia provisionada.
+**Acción:** Haz un refactor (renombrar o mover un recurso a módulo) con un bloque `moved`, vía PR.
+**Por qué:** Reúne M09: evolucionar sin recrear ni romper.
+**Resultado esperado:** El `plan` del PR muestra el movimiento, no destrucción.
 
-### 6 — Refactor seguro y limpieza
+### 6 — Limpieza
 
-**Acción:** Practicad un `moved` para renombrar un recurso sin recrearlo (M09) y, al terminar,
-`terraform destroy` de todo.
-**Por qué:** Evolución sin impacto y cuidado de la ventana/coste.
-**Resultado esperado:** Refactor sin destruir/crear y entorno limpio.
+**Acción:** `terraform destroy` (o workflow de destroy) en los entornos con recursos reales.
+**Por qué:** Cierra la sesión sin dejar coste.
+**Resultado esperado:** No quedan recursos activos en AWS.
 
-## Conclusiones
-
-- Tenéis una **plataforma IaC** que integra estructura, módulos, estado remoto, CI/CD seguro y configuración.
-- El cambio de infraestructura sigue un ciclo controlado: rama → PR → plan → aprobación → apply.
-- El repositorio queda como **base reutilizable** para proyectos futuros.
+> [!WARNING]
+> Hay recursos reales (EC2, IAM, S3). Trabaja dentro de la ventana y **destruye al terminar**.
 
 ## Comprueba tu entendimiento
 
-**Ciclo completo operativo**
-Abrid una PR con un cambio y seguidla hasta el `apply`.
-→ El cambio solo llega a AWS tras `plan` revisado y aprobación.
+**Pipeline de punta a punta**
+Abre un PR con un cambio.
+→ Corre `plan`; al mergear, el `apply` espera aprobación y luego aplica con OIDC.
 
-**Sin credenciales estáticas**
-Revisad los secretos del repo y el workflow.
-→ El pipeline usa OIDC; no hay claves de AWS almacenadas.
+**Sin claves estáticas**
+Revisa los Secrets del repo.
+→ No hay credenciales AWS; el pipeline funciona por rol asumido.
 
-**Estado remoto**
-Mirad el workspace en Terraform Cloud.
-→ El estado y los runs están en TFC, no en local.
+**Repositorio mantenible**
+Recorre la estructura final.
+→ Entornos separados, módulos versionados, estado en TFC, workflows claros.
 
 ## Reto
 
-### 1 — Promoción dev → prod
+### 1 — Un segundo entorno sin duplicar
 
-¿Cómo promoverías un cambio validado en `dev` a `prod` minimizando el riesgo?
+Añade `prod` reutilizando los mismos módulos y workflows, cambiando solo variables y workspace.
+¿Qué tienes que tocar y qué **no**?
 
 <details>
 <summary>Ver solución</summary>
 
-Mismo código, **workspaces/variables por entorno**: aplicas primero en `dev`, revisas el `plan` de
-`prod` en una PR (con aprobación de environment más estricta) y solo entonces aplicas en `prod`.
-La promoción es de **configuración** (variables), no de copiar y pegar código.
+Tocas: el `terraform.tfvars` de `prod`, el `cloud { workspaces { name } }` y, si acaso, el filtro de
+environment del workflow. **No** tocas los módulos ni la lógica: misma receta, distinta despensa.
+Esa es la prueba de que la arquitectura es correcta.
 
 </details>
 
@@ -135,7 +94,7 @@ La promoción es de **configuración** (variables), no de copiar y pegar código
 
 | Síntoma | Causa probable | Cómo arreglarlo |
 |---------|----------------|-----------------|
-| El equipo se pisa en el estado | Estado local en vez de remoto | Usad TFC con un workspace por entorno (locking) |
-| El pipeline no asume el rol | `sub` de OIDC o `permissions: id-token` mal | Revisad trust policy y permisos del job (M11) |
-| Cambios incompatibles entre módulos | Consumís `main` en vez de tags | Pinead `?ref=vX.Y.Z` (M05) |
-| Recursos vivos al acabar | Falta `destroy` | `terraform destroy` en cada entorno antes de cerrar |
+| El pipeline falla en `prod` pero no en `dev` | Diferencias de permisos o variables | Revisa el rol y los `tfvars` de prod |
+| `plan` propone recrear tras refactor | Falta `moved` | Añade el bloque con `from`/`to` correctos |
+| Recursos olvidados generan coste | No destruiste | `terraform destroy` en cada entorno |
+| Acceso AWS falla | Fuera de la ventana | Reintenta en sesión |

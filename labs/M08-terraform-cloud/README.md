@@ -1,30 +1,50 @@
 # M08 — Terraform Cloud y estados remotos
 
-[← Página anterior](../M07-gestion-estado/M07-01-operar-estado.md) · [Siguiente página →](M08-01-migracion-terraform-cloud.md)
+[← Página anterior](../M07-gestion-estado/M07-02-analisis-drift.md) · [Siguiente página →](M08-01-migracion-terraform-cloud.md)
 
 > [!NOTE]
-> **Cómo funciona este módulo.** Conceptos → recorrido **en la herramienta** → **laboratorio**
-> que haces tú → conclusiones, comprobación y reto.
+> **Cómo funciona este módulo.** Primero la **teoría**, luego la **demostración guiada** del
+> formador, y después **practicas tú** en el laboratorio.
 
 ## Qué aprenderás
 
-- Por qué el estado local no escala a un equipo.
-- Migrar el estado a **Terraform Cloud** (backend remoto).
-- Usar **workspaces**, **locking** y trabajar en colaboración sin pisarse.
+- Por qué el estado local no sirve para equipos y qué aporta un **backend remoto**.
+- Migrar el estado a **Terraform Cloud** y trabajar con **workspaces**.
+- Cómo el **bloqueo (locking)** evita que dos `apply` corran a la vez.
 
-## Contexto
+## Teoría
 
-- Terraform Cloud es el cajón compartido con candado: solo uno aplica a la vez.
-- El estado remoto + locking elimina los conflictos de `.tfstate`.
-- Las credenciales AWS se configuran como variables del workspace en TFC.
+| Estado local | Estado remoto (Terraform Cloud) |
+|--------------|---------------------------------|
+| Vive en tu disco (`terraform.tfstate`) | Vive en TFC, compartido por el equipo |
+| Sin bloqueo: dos `apply` lo corrompen | **Locking** automático: un `apply` a la vez |
+| Sin historial ni control de acceso | Versionado, permisos y auditoría |
+
+Un **workspace** de TFC es un estado aislado (típicamente uno por entorno: `tfadv-dev`,
+`tfadv-prod`). Las credenciales de AWS se configuran como **variables de entorno** del workspace,
+no en tu disco.
 
 > [!IMPORTANT]
-> Este módulo ejecuta `apply` (vía TFC) sobre AWS. Hazlo en sesión y destruye al terminar.
+> Al migrar, Terraform **sube tu estado local** a TFC. A partir de ahí, el estado de verdad vive en
+> TFC: no edites el `.tfstate` local (ya no manda).
 
-## Tabla de ejercicios
+## Demostración guiada
+
+> Recorrido del formador. El backend es TFC; el `apply` toca AWS (🔴): hazlo en la sesión.
+
+1. **Login y bloque cloud.** Tras `terraform login`, se añade el bloque `cloud { organization... }`
+   apuntando al workspace.
+2. **Migración del estado.** `terraform init` detecta el cambio de backend y ofrece **migrar** el
+   estado local a TFC; se acepta y se comprueba en la UI que el estado ya está arriba.
+3. **Credenciales en el workspace.** En la UI de TFC se añaden `AWS_ACCESS_KEY_ID`/`SECRET` como
+   variables de entorno sensibles.
+4. **Locking en acción.** Se lanza un `apply` y, en paralelo, se intenta otro: el segundo espera
+   por el lock. Ahí se ve el valor del estado remoto.
+
+## Ahora practica tú
 
 | Lab | Título | Qué harás |
 |-----|--------|-----------|
-| M08-01 | [Migración a Terraform Cloud](M08-01-migracion-terraform-cloud.md) | Migrar el estado local a TFC, ver el workspace, el run y el bloqueo |
+| M08-01 | [Migración a Terraform Cloud](M08-01-migracion-terraform-cloud.md) | Crear el workspace, migrar el estado local y aplicar desde TFC |
 
 → Empieza por **[M08-01 — Migración a Terraform Cloud](M08-01-migracion-terraform-cloud.md)**.

@@ -1,30 +1,54 @@
 # M11 — Seguridad y gestión de secretos
 
-[← Página anterior](../M10-cicd-github-actions/M10-01-pipeline-terraform.md) · [Siguiente página →](M11-01-oidc-minimo-privilegio.md)
+[← Página anterior](../M10-cicd-github-actions/M10-02-apply-aprobacion.md) · [Siguiente página →](M11-01-oidc.md)
 
 > [!NOTE]
-> **Cómo funciona este módulo.** Conceptos → recorrido **en la herramienta** → **laboratorio**
-> que haces tú → conclusiones, comprobación y reto.
+> **Cómo funciona este módulo.** Primero la **teoría**, luego la **demostración guiada** del
+> formador, y después **practicas tú** en los laboratorios (este módulo tiene dos).
 
 ## Qué aprenderás
 
-- Marcar variables como **sensibles** y gestionar secretos con **GitHub Secrets**.
-- Aplicar **IAM** con principio de **mínimo privilegio**.
-- Eliminar credenciales estáticas con **OIDC GitHub↔AWS** (roles asumibles, tokens efímeros).
+- Eliminar credenciales estáticas del pipeline con **OIDC GitHub ↔ AWS**.
+- Aplicar el principio de **mínimo privilegio** en los roles de IAM.
+- Tratar variables sensibles correctamente en Terraform.
 
-## Contexto
+## Teoría
 
-- OIDC es enseñar tu carnet (token efímero) en vez de dejar una copia de la llave (clave estática).
-- La trust policy del rol debe acotar repo y rama: ni de menos (no asume) ni de más (inseguro).
-- Objetivo: **cero claves de AWS** en el repositorio.
+**OIDC** permite que GitHub Actions **asuma un rol de AWS** presentando un token de identidad
+firmado, sin guardar claves. AWS confía en el emisor de GitHub y entrega credenciales **temporales**.
+
+| Sin OIDC | Con OIDC |
+|----------|----------|
+| Claves estáticas en GitHub Secrets | Sin claves: token efímero por ejecución |
+| Si se filtran, valen hasta rotarlas | Caducan en minutos; alcance acotado |
+
+Un rol de IAM tiene dos caras que conviene no confundir:
+
+| Política | Responde a |
+|----------|------------|
+| **Trust policy** | ¿**Quién** puede asumir el rol? (aquí, el repo/rama de GitHub vía OIDC) |
+| **Permission policy** | ¿**Qué** puede hacer quien lo asume? (mínimo privilegio) |
 
 > [!IMPORTANT]
-> Este módulo crea roles IAM y asume identidades en AWS. Hazlo en sesión y limpia al terminar.
+> Empieza por permisos **mínimos** y amplía cuando un `apply` falle por falta de permiso. Al revés
+> (dar `*` y recortar) casi nadie lo recorta nunca.
 
-## Tabla de ejercicios
+## Demostración guiada
+
+> Recorrido del formador. Crea IAM real (🔴 AWS): hazlo en la sesión.
+
+1. **Proveedor OIDC y rol.** Se da de alta el proveedor OIDC de GitHub en IAM y se crea un rol con
+   una **trust policy** que solo confía en `repo:tu-org/tu-repo:ref:refs/heads/main`.
+2. **Workflow sin claves.** El workflow usa `aws-actions/configure-aws-credentials` con
+   `role-to-assume` y `permissions: id-token: write`; ya no hay `AWS_ACCESS_KEY_ID`.
+3. **Mínimo privilegio.** Se parte de una **permission policy** mínima y se observa cómo un `apply`
+   falla si falta un permiso, para añadir solo el que hace falta.
+
+## Ahora practica tú
 
 | Lab | Título | Qué harás |
 |-----|--------|-----------|
-| M11-01 | [OIDC y mínimo privilegio](M11-01-oidc-minimo-privilegio.md) | Configurar OIDC GitHub↔AWS y acotar permisos al mínimo |
+| M11-01 | [OIDC GitHub ↔ AWS](M11-01-oidc.md) | Configurar OIDC y que el pipeline asuma un rol sin claves estáticas |
+| M11-02 | [Mínimo privilegio](M11-02-minimo-privilegio.md) | Ajustar la permission policy del rol al mínimo necesario |
 
-→ Empieza por **[M11-01 — OIDC y mínimo privilegio](M11-01-oidc-minimo-privilegio.md)**.
+→ Empieza por **[M11-01 — OIDC GitHub ↔ AWS](M11-01-oidc.md)**.

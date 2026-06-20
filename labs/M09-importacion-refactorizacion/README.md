@@ -1,30 +1,53 @@
 # M09 — Importación y refactorización
 
-[← Página anterior](../M08-terraform-cloud/M08-01-migracion-terraform-cloud.md) · [Siguiente página →](M09-01-import-moved.md)
+[← Página anterior](../M08-terraform-cloud/M08-01-migracion-terraform-cloud.md) · [Siguiente página →](M09-01-importar-recursos.md)
 
 > [!NOTE]
-> **Cómo funciona este módulo.** Conceptos → recorrido **en la herramienta** → **laboratorio**
-> que haces tú → conclusiones, comprobación y reto.
+> **Cómo funciona este módulo.** Primero la **teoría**, luego la **demostración guiada** del
+> formador, y después **practicas tú** en los laboratorios (este módulo tiene dos).
 
 ## Qué aprenderás
 
-- Adoptar recursos existentes con `terraform import` (y bloques `import {}`).
-- Refactorizar y renombrar recursos sin recrearlos usando `moved {}`.
-- Evolucionar infraestructuras de producción sin impacto.
+- Traer recursos existentes (creados a mano) bajo gestión de Terraform con `import`.
+- Refactorizar código (renombrar, mover a módulos) **sin recrear** recursos usando `moved`.
 
-## Contexto
+## Teoría
 
-- No todo nace en Terraform: a veces hay que **adoptar** lo que ya existe.
-- Primero escribes el recurso en HCL, **luego** lo importas.
-- `moved` evita el destroy/create al renombrar.
+| Situación | Herramienta |
+|-----------|-------------|
+| Un recurso existe en AWS pero no en tu estado | `terraform import` (o bloque `import`) |
+| Renombras/mueves un recurso ya gestionado | bloque `moved` (en el código, versionable) |
 
 > [!IMPORTANT]
-> Este módulo crea y adopta recursos en AWS. Hazlo en sesión y destruye al terminar.
+> `import` solo trae el recurso al **estado**; tú debes escribir el código `.tf` que lo describe.
+> Si el código no coincide con la realidad, el siguiente `plan` querrá "corregir" diferencias.
 
-## Tabla de ejercicios
+El bloque `moved` es la evolución de `state mv` (M07): vive en el código, se revisa en el PR y se
+aplica solo, sin comandos manuales.
+
+```hcl
+moved {
+  from = aws_s3_bucket.data
+  to   = aws_s3_bucket.primary
+}
+```
+
+## Demostración guiada
+
+> Recorrido del formador. Requiere recursos reales (🔴 AWS): hazlo en la sesión y destruye al final.
+
+1. **Crear "a mano" e importar.** Se crea un bucket por consola, se escribe su bloque `resource` y
+   se hace `import`; luego `plan` debe decir **No changes** si el código casa con la realidad.
+2. **Refactor con moved.** Se renombra un recurso en el código y se añade un bloque `moved`;
+   `plan`/`apply` aplican el movimiento sin destruir nada.
+3. **Mover a módulo.** Se muestra cómo `moved` también sirve para meter un recurso dentro de un
+   módulo (`module.x.aws_...`) sin recrearlo.
+
+## Ahora practica tú
 
 | Lab | Título | Qué harás |
 |-----|--------|-----------|
-| M09-01 | [Import y moved](M09-01-import-moved.md) | Adoptar un recurso existente con `import` y refactorizar con `moved` |
+| M09-01 | [Importar recursos existentes](M09-01-importar-recursos.md) | Crear un bucket a mano y traerlo al estado con `import` |
+| M09-02 | [Refactor con moved](M09-02-refactor-moved.md) | Renombrar y mover un recurso a un módulo sin recrearlo |
 
-→ Empieza por **[M09-01 — Import y moved](M09-01-import-moved.md)**.
+→ Empieza por **[M09-01 — Importar recursos existentes](M09-01-importar-recursos.md)**.
