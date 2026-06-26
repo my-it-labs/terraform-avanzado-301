@@ -7,7 +7,8 @@
 ### Objetivo
 
 Encapsular un bucket S3 (con versionado opcional) en un módulo y componerlo con los de naming y
-tagging. Diseño y `plan` son locales; el `apply` es opcional.
+tagging. Validación con `plan` en el entorno del alumno; **`apply` no disponible** por límites IAM
+del rol (ver paso 5).
 
 ### Prerrequisitos
 
@@ -132,95 +133,61 @@ terraform plan
 **Por qué:** Compruebas qué se crearía sin aplicar todavía.
 **Resultado esperado:** `plan` propone crear el bucket con nombre y etiquetas correctos.
 
-### 5 — (Opcional) Aplica y destruye
+### 5 — Validación final (sin `apply` en el entorno del alumno)
+
+En el rol del lab **no hay** lecturas `s3:GetBucket*` que exige el provider AWS **5.x** al gestionar
+un `aws_s3_bucket`. **No podemos ampliar esa política IAM** en el curso. Por tanto:
+
+> [!IMPORTANT]
+> **`terraform apply` y `terraform destroy` no están disponibles para el alumno** en M04-02.
+> El objetivo del lab se cumple con **`init` + `validate` + `plan`**.
 
 **Acción:**
 
 ```bash
 source scripts/load-env.sh
 cd environments/dev
-terraform apply -auto-approve -refresh=false
-# Comprueba que el bucket existe (sustituye <usuario> por tu lab_user):
-aws --profile lab s3api head-bucket --bucket curso-<usuario>-data-us-east-2
-terraform destroy -auto-approve -refresh=false
+terraform init
+terraform validate
+terraform plan
 ```
 
-**Por qué:** Si quieres verlo real, créalo y elimínalo en la misma sesión. El flag `-refresh=false`
-evita lecturas S3 que el rol del laboratorio no tiene (ver sección siguiente).
-**Resultado esperado:** El bucket se crea y luego se destruye.
+**Por qué:** El `plan` demuestra composición de módulos, nombre `curso-<usuario>-*` y etiquetas.
+No necesitas crear el bucket en AWS para aprobar el ejercicio.
+**Resultado esperado:** El plan propone 2 recursos (bucket + versionado) con nombre y tags correctos.
 
-> [!WARNING]
-> Este paso crea un recurso real en AWS. Hazlo dentro de la ventana de clase y **destruye al
-> terminar**. Si solo practicas el diseño, quédate en `plan`.
+**Demo del formador (opcional):** el formador puede hacer un `apply` en vivo con credenciales que
+sí tengan lecturas `GetBucket*`, solo para enseñar el flujo. Los alumnos no lo replican.
+
+Si algún alumno probó `apply` y falló con `GetBucketWebsite` teniendo `assumed-role/...` en el
+error, **no es un fallo suyo**. Si quedó un bucket a medias:
+
+```bash
+aws --profile lab s3api head-bucket --bucket curso-<usuario>-data-us-east-2
+aws --profile lab s3 rb s3://curso-<usuario>-data-us-east-2 --force   # solo si existe
+terraform state rm module.bucket.aws_s3_bucket_versioning.this        # solo si hay estado
+terraform state rm module.bucket.aws_s3_bucket.this
+```
 
 ### Permisos del rol del laboratorio
 
-En el curso no trabajas con acceso administrador a AWS. Operas a través de una **capa de permisos
-restringida**: asumes el rol `LabRole-curso` (perfil `lab`), diseñado con **mínimo privilegio** para
-que solo puedas crear y borrar recursos propios del curso (prefijo `curso-<usuario>-*` en
-**us-east-2**).
-
-Eso implica una diferencia importante entre **lo que Terraform necesita leer** y **lo que el rol
-puede leer**:
+En el curso operas con **mínimo privilegio** (`LabRole-curso`, perfil `lab`). Eso es correcto para
+seguridad, pero choca con Terraform AWS 5.x:
 
 | Capa | Qué ocurre |
 |------|------------|
-| **Tu código** | Correcto: define bucket, versionado y tags. |
-| **Rol del lab** | Permite crear, etiquetar, versionar y borrar buckets del curso. |
-| **Provider AWS 5.x** | Tras **crear** o **refrescar** un bucket, lee configuraciones (website, CORS, lifecycle…) aunque no las uses. |
-| **Conflicto** | Si el rol no tiene `s3:GetBucketWebsite` (y otras `GetBucket*`) → **403** con `assumed-role/...` (rol sí asumido, pero lectura denegada). |
+| **Tu código** | Correcto: bucket, versionado y tags. |
+| **Rol del lab** | Puede crear/borrar buckets `curso-<usuario>-*` (operaciones de escritura). |
+| **Provider AWS 5.x** | Tras crear o refrescar, llama lecturas como `s3:GetBucketWebsite` aunque no uses web. |
+| **Límite del curso** | Esas lecturas **no están en el rol** y **no las podemos añadir** desde el curso. |
+| **Consecuencia** | `plan`/`validate` sí; `apply`/`destroy` no son fiables para el alumno. |
 
-**No es un error tuyo.** Puede fallar **con el rol bien asumido** (`assumed-role/lab-role-curso/...` en
-el mensaje). El bucket a veces **sí se crea** en AWS y Terraform falla al leerlo para guardar el
-estado.
+**No es un error del alumno** si el mensaje muestra `assumed-role/lab-role-curso/...` y aun así
+falla en `GetBucketWebsite`: el rol está bien asumido; falta un permiso que Terraform pide y que
+nosotros no administramos.
 
-**Comprueba si el bucket quedó creado:**
-
-```bash
-aws --profile lab s3api head-bucket --bucket curso-<usuario>-data-us-east-2
-```
-
-El tester del curso (`./scripts/check-aws-permissions.sh`) valida las operaciones que sí necesitas
-para los labs:
-
-| Acción | ¿Disponible en el rol? |
-|--------|------------------------|
-| `s3:CreateBucket` | Sí |
-| `s3:DeleteBucket` | Sí |
-| `s3:PutBucketVersioning` / `s3:GetBucketVersioning` | Sí |
-| `s3:PutObject` / `s3:ListBucket` | Sí |
-| `s3:PutBucketTagging` / `s3:GetBucketTagging` | Sí |
-| `s3:GetBucketWebsite` y otras `s3:GetBucket*` (lecturas del provider) | **A veces no** — Terraform 5.x las pide al crear/refrescar | Usa `-refresh=false`; si sigue fallando, avisa al formador (política del rol) |
-
-**Solución en este lab:**
-
-```bash
-terraform apply -auto-approve -refresh=false
-terraform destroy -auto-approve -refresh=false
-```
-
-Si **aún** falla en `Creating...` con `GetBucketWebsite` teniendo `assumed-role` en el error, el
-formador debe ampliar la política del rol con lecturas `s3:GetBucket*` sobre `arn:aws:s3:::curso-*`
-(solo lectura; sigue siendo mínimo privilegio). Mientras tanto, **`terraform plan` basta** para
-validar el lab.
-
-Si el `destroy` falla por el versionado, destruye en dos pasos:
-
-```bash
-terraform destroy -auto-approve -refresh=false -target=module.bucket.aws_s3_bucket_versioning.this
-terraform destroy -auto-approve -refresh=false -target=module.bucket.aws_s3_bucket.this
-```
-
-**Comprobar que el bucket existe** (comandos sueltos, sustituye `<usuario>` por tu `lab_user`):
-
-```bash
-aws s3api head-bucket --bucket curso-<usuario>-data-us-east-2
-aws s3 ls | grep curso-<usuario>
-```
-
-- Sin error → el bucket existe.
-- `404` / `NoSuchBucket` → no existe (o ya se borró).
-- `403` en `head-bucket` → prueba `aws s3 ls`; a veces lista buckets aunque otras lecturas fallen.
+El tester (`./scripts/check-aws-permissions.sh`) comprueba lo que el rol sí tiene. Si falla
+`s3:GetBucketWebsite`, confirma que **no debes usar apply** en ese entorno.
 
 ## Comprueba tu entendimiento
 
@@ -254,8 +221,8 @@ consumidor obtiene cifrado sin conocer los detalles.
 | `AccessDenied` en `s3:CreateBucket` como `user/alumno-...` | Terraform no asumió el rol (solo el usuario IAM) | `profile = "lab"` en el provider + `source scripts/load-env.sh`; `./scripts/check-aws-identity.sh` |
 | `Reference to undeclared input variable "lab_user"` | Usas `var.lab_user` en el bucket pero no la declaraste | Paso 2: añádela en `variables.tf` y en `terraform.tfvars` (mismo valor que `AWS_LAB_USER`) |
 | `403 AccessDenied` al crear o borrar el bucket | `lab_user` no coincide con `AWS_LAB_USER` del rol | Alinea ambos valores (p. ej. `david.pestana`) |
-| `403 AccessDenied` en `s3:GetBucketWebsite` (error muestra `assumed-role/...`) | Rol OK; faltan lecturas `GetBucket*` que pide el provider al **crear** el bucket | `-refresh=false`; si persiste, `./scripts/check-aws-permissions.sh` y avisa al formador |
+| `403 AccessDenied` en `s3:GetBucketWebsite` con `assumed-role/...` | Límite del entorno: Terraform 5.x pide lecturas que el rol no tiene y no podemos añadir | **No uses apply**; basta `terraform plan`. Limpia bucket/estado si probaste apply |
 | `BucketAlreadyExists` | Los nombres de bucket son globales en AWS | Añade sufijo único (región, cuenta o `random_id`) |
 | `Unsupported argument` | Input no declarado en el módulo | Revisa las `variable` del módulo |
-| El bucket queda tras la práctica | Olvidaste destruir | `terraform destroy -auto-approve -refresh=false` en `environments/dev` |
+| El bucket queda tras probar apply | Apply no está soportado en el entorno alumno | Borra con `aws --profile lab s3 rb s3://... --force` y `terraform state rm ...` |
 | Acceso AWS falla | Fuera de la ventana o prefijo incorrecto | Reintenta en sesión; buckets `curso-<usuario>-*` en `us-east-2` |
