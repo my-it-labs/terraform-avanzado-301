@@ -18,7 +18,7 @@
 
 variable "bucket_name" {
   type        = string
-  description = "Nombre global único del bucket S3."
+  description = "Nombre global único del bucket S3. V1.1.0"
 }
 
 variable "tags" {
