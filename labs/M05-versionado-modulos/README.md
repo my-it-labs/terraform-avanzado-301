@@ -31,7 +31,7 @@ infraestructura no cambia hasta que él decide actualizar.
 
 ## Demostración guiada
 
-> Recorrido del formador. Es trabajo de Git: no consume AWS.
+> Recorrido del formador. Es trabajo de Git: no consume AWS. Material en `labs-sandbox/m05/`.
 
 1. **Publicar y etiquetar.** Se publica el módulo en un repo y se crea el tag `v1.0.0`
    (`git tag` + `git push origin v1.0.0`).
