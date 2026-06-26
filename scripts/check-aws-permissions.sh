@@ -129,6 +129,16 @@ if [ $? -eq 0 ]; then
   aws s3api list-objects-v2 --bucket "$BUCKET" >/tmp/_e 2>&1 \
     && record PASS "s3:ListBucket" \
     || record FAIL "s3:ListBucket" "$(head -n1 /tmp/_e)"
+  # Terraform AWS provider 5.x llama GetBucketWebsite al leer el bucket (aunque no tenga web).
+  # NoSuchWebsiteConfiguration = permiso OK; AccessDenied = apply/plan fallará.
+  GW="$(aws s3api get-bucket-website --bucket "$BUCKET" 2>&1 || true)"
+  if echo "$GW" | grep -q 'NoSuchWebsiteConfiguration'; then
+    record PASS "s3:GetBucketWebsite (requerido por Terraform provider 5.x)"
+  elif echo "$GW" | grep -qi 'AccessDenied'; then
+    record FAIL "s3:GetBucketWebsite" "Terraform apply puede fallar; pide al formador s3:GetBucket* en el rol"
+  else
+    record SKIP "s3:GetBucketWebsite" "$(echo "$GW" | head -n1)"
+  fi
 else
   record FAIL "s3:CreateBucket" "$(head -n1 /tmp/_e)"
 fi

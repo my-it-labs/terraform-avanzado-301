@@ -167,12 +167,18 @@ puede leer**:
 |------|------------|
 | **Tu código** | Correcto: define bucket, versionado y tags. |
 | **Rol del lab** | Permite crear, etiquetar, versionar y borrar buckets del curso. |
-| **Provider AWS 5.x** | Antes de `apply`/`destroy`, intenta **refrescar** el estado leyendo muchas APIs del bucket (website, CORS, lifecycle…). |
-| **Terraform sin `profile = "lab"`** | `apply` usa las keys del `.env` → usuario IAM, no el rol | Añade `profile = "lab"` al provider; `source scripts/load-env.sh` antes de apply |
-| **Conflicto** | El rol **no** incluye lecturas como `s3:GetBucketWebsite` → **403 AccessDenied**, aunque el bucket exista. |
+| **Provider AWS 5.x** | Tras **crear** o **refrescar** un bucket, lee configuraciones (website, CORS, lifecycle…) aunque no las uses. |
+| **Conflicto** | Si el rol no tiene `s3:GetBucketWebsite` (y otras `GetBucket*`) → **403** con `assumed-role/...` (rol sí asumido, pero lectura denegada). |
 
-**No es un error tuyo.** El bucket se creó bien; falla la fase de *refresh* porque el provider pide
-más permisos de lectura de los que la capa de seguridad del laboratorio concede.
+**No es un error tuyo.** Puede fallar **con el rol bien asumido** (`assumed-role/lab-role-curso/...` en
+el mensaje). El bucket a veces **sí se crea** en AWS y Terraform falla al leerlo para guardar el
+estado.
+
+**Comprueba si el bucket quedó creado:**
+
+```bash
+aws --profile lab s3api head-bucket --bucket curso-<usuario>-data-us-east-2
+```
 
 El tester del curso (`./scripts/check-aws-permissions.sh`) valida las operaciones que sí necesitas
 para los labs:
@@ -184,17 +190,19 @@ para los labs:
 | `s3:PutBucketVersioning` / `s3:GetBucketVersioning` | Sí |
 | `s3:PutObject` / `s3:ListBucket` | Sí |
 | `s3:PutBucketTagging` / `s3:GetBucketTagging` | Sí |
-| `s3:GetBucketWebsite` y otras lecturas al refrescar | **No** (por diseño del entorno) |
+| `s3:GetBucketWebsite` y otras `s3:GetBucket*` (lecturas del provider) | **A veces no** — Terraform 5.x las pide al crear/refrescar | Usa `-refresh=false`; si sigue fallando, avisa al formador (política del rol) |
 
-**Solución en este lab:** evita el refresh y confía en el estado local con `-refresh=false`:
+**Solución en este lab:**
 
 ```bash
 terraform apply -auto-approve -refresh=false
 terraform destroy -auto-approve -refresh=false
 ```
 
-Así Terraform aplica o destruye usando el estado que ya tiene, sin llamar a APIs de lectura que el
-rol no autoriza.
+Si **aún** falla en `Creating...` con `GetBucketWebsite` teniendo `assumed-role` en el error, el
+formador debe ampliar la política del rol con lecturas `s3:GetBucket*` sobre `arn:aws:s3:::curso-*`
+(solo lectura; sigue siendo mínimo privilegio). Mientras tanto, **`terraform plan` basta** para
+validar el lab.
 
 Si el `destroy` falla por el versionado, destruye en dos pasos:
 
@@ -246,7 +254,7 @@ consumidor obtiene cifrado sin conocer los detalles.
 | `AccessDenied` en `s3:CreateBucket` como `user/alumno-...` | Terraform no asumió el rol (solo el usuario IAM) | `profile = "lab"` en el provider + `source scripts/load-env.sh`; `./scripts/check-aws-identity.sh` |
 | `Reference to undeclared input variable "lab_user"` | Usas `var.lab_user` en el bucket pero no la declaraste | Paso 2: añádela en `variables.tf` y en `terraform.tfvars` (mismo valor que `AWS_LAB_USER`) |
 | `403 AccessDenied` al crear o borrar el bucket | `lab_user` no coincide con `AWS_LAB_USER` del rol | Alinea ambos valores (p. ej. `david.pestana`) |
-| `403 AccessDenied` en `s3:GetBucketWebsite` (u otra `GetBucket*`) | Capa de permisos del lab: el provider refresca el bucket con lecturas que el rol no tiene | No es fallo de tu código; usa `terraform destroy -auto-approve -refresh=false` (igual en `apply`) |
+| `403 AccessDenied` en `s3:GetBucketWebsite` (error muestra `assumed-role/...`) | Rol OK; faltan lecturas `GetBucket*` que pide el provider al **crear** el bucket | `-refresh=false`; si persiste, `./scripts/check-aws-permissions.sh` y avisa al formador |
 | `BucketAlreadyExists` | Los nombres de bucket son globales en AWS | Añade sufijo único (región, cuenta o `random_id`) |
 | `Unsupported argument` | Input no declarado en el módulo | Revisa las `variable` del módulo |
 | El bucket queda tras la práctica | Olvidaste destruir | `terraform destroy -auto-approve -refresh=false` en `environments/dev` |
