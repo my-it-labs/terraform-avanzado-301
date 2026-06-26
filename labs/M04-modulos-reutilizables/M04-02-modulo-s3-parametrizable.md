@@ -99,6 +99,26 @@ output "bucket_id" { value = module.bucket.bucket_id }
 **Por qué:** El nombre y las etiquetas vienen de los otros módulos: composición real.
 **Resultado esperado:** El bucket usará un nombre coherente con la convención.
 
+En el mismo `environments/dev/main.tf`, configura el **provider** para que Terraform asuma el rol
+del lab (igual que `aws --profile lab`). Sin esto, `apply` usa el usuario IAM del `.env` y falla con
+`AccessDenied`:
+
+```hcl
+provider "aws" {
+  region  = var.aws_region
+  profile = "lab" # asume lab-role-curso; requiere source scripts/load-env.sh (M01)
+}
+```
+
+Antes de `apply`, comprueba la identidad:
+
+```bash
+source scripts/load-env.sh
+./scripts/check-aws-identity.sh
+```
+
+→ El paso 2 del checker debe mostrar `assumed-role/lab-role-curso/...`.
+
 ### 4 — Inicializa y planifica
 
 **Acción:**
@@ -117,9 +137,11 @@ terraform plan
 **Acción:**
 
 ```bash
+source scripts/load-env.sh
+cd environments/dev
 terraform apply -auto-approve -refresh=false
 # Comprueba que el bucket existe (sustituye <usuario> por tu lab_user):
-aws s3api head-bucket --bucket curso-<usuario>-data-us-east-2
+aws --profile lab s3api head-bucket --bucket curso-<usuario>-data-us-east-2
 terraform destroy -auto-approve -refresh=false
 ```
 
@@ -146,6 +168,7 @@ puede leer**:
 | **Tu código** | Correcto: define bucket, versionado y tags. |
 | **Rol del lab** | Permite crear, etiquetar, versionar y borrar buckets del curso. |
 | **Provider AWS 5.x** | Antes de `apply`/`destroy`, intenta **refrescar** el estado leyendo muchas APIs del bucket (website, CORS, lifecycle…). |
+| **Terraform sin `profile = "lab"`** | `apply` usa las keys del `.env` → usuario IAM, no el rol | Añade `profile = "lab"` al provider; `source scripts/load-env.sh` antes de apply |
 | **Conflicto** | El rol **no** incluye lecturas como `s3:GetBucketWebsite` → **403 AccessDenied**, aunque el bucket exista. |
 
 **No es un error tuyo.** El bucket se creó bien; falla la fase de *refresh* porque el provider pide
@@ -220,6 +243,7 @@ consumidor obtiene cifrado sin conocer los detalles.
 
 | Síntoma | Causa probable | Cómo arreglarlo |
 |---------|----------------|-----------------|
+| `AccessDenied` en `s3:CreateBucket` como `user/alumno-...` | Terraform no asumió el rol (solo el usuario IAM) | `profile = "lab"` en el provider + `source scripts/load-env.sh`; `./scripts/check-aws-identity.sh` |
 | `Reference to undeclared input variable "lab_user"` | Usas `var.lab_user` en el bucket pero no la declaraste | Paso 2: añádela en `variables.tf` y en `terraform.tfvars` (mismo valor que `AWS_LAB_USER`) |
 | `403 AccessDenied` al crear o borrar el bucket | `lab_user` no coincide con `AWS_LAB_USER` del rol | Alinea ambos valores (p. ej. `david.pestana`) |
 | `403 AccessDenied` en `s3:GetBucketWebsite` (u otra `GetBucket*`) | Capa de permisos del lab: el provider refresca el bucket con lecturas que el rol no tiene | No es fallo de tu código; usa `terraform destroy -auto-approve -refresh=false` (igual en `apply`) |

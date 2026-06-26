@@ -132,7 +132,7 @@ de CI/CD para no dejar claves estáticas en ningún sitio?
 | Síntoma | Causa probable | Cómo arreglarlo |
 |---------|----------------|-----------------|
 | `NoCredentials` | No cargaste `.env` ni secrets | `source scripts/load-env.sh` o rebuild Codespace |
-| `get-caller-identity` OK pero sin `assumed-role` | No usaste `--profile lab` | `aws --profile lab sts get-caller-identity` |
+| `get-caller-identity` OK pero sin `assumed-role` | Consulta sin `--profile lab` (o Terraform sin `profile = "lab"`) | `aws --profile lab sts get-caller-identity` o `./scripts/check-aws-identity.sh` |
 | Fuera de ventana AWS | Horario de clase | Reintenta en sesión |
 | `No region` | Falta `AWS_REGION` | `us-east-2` en secrets o `.env` |
 | Buckets denegados | Nombre sin prefijo `curso-<usuario>-` | Revisa `AWS_LAB_USER` y la convención del curso |

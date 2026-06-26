@@ -8,7 +8,8 @@ terraform {
 }
 
 provider "aws" {
-  region = var.aws_region
+  region  = var.aws_region
+  profile = "lab" # asume lab-role-curso; requiere source scripts/load-env.sh (M01)
 }
 
 module "naming" {
