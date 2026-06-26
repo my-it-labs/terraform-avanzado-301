@@ -29,7 +29,7 @@
 
 ## Demostración guiada
 
-> Recorrido del formador. Todo con `plan`, sin aplicar: no consume AWS.
+> Recorrido del formador. Todo con `plan`, sin aplicar: no consume AWS. Material en `labs-sandbox/m06/`.
 
 1. **`for_each` sobre un mapa.** A partir de un mapa de "buckets lógicos", un único bloque de
    recurso genera N buckets. En el `plan` se ven por clave (`this["logs"]`, `this["data"]`…), no

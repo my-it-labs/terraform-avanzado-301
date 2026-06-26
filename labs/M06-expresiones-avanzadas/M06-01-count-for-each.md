@@ -11,7 +11,7 @@ Todo con `plan`, sin aplicar: no consume AWS.
 
 ### Prerrequisitos
 
-- Dev container (M01). Un directorio de trabajo (p. ej. `labs-sandbox/m06`).
+- Dev container (M01). Material base en `labs-sandbox/m06/` (o crea el directorio tú mismo).
 
 ### En qué consiste
 
