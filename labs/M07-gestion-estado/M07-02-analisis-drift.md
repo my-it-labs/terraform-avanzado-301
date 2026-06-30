@@ -6,7 +6,7 @@
 
 ### Objetivo
 
-Provocar un cambio **fuera** de Terraform (en la consola de AWS) y detectarlo como drift con
+Provocar un cambio **fuera** de Terraform (consola de AWS o AWS CLI) y detectarlo como drift con
 `terraform plan`.
 
 ### Prerrequisitos
@@ -15,7 +15,8 @@ Provocar un cambio **fuera** de Terraform (en la consola de AWS) y detectarlo co
 
 ### En qué consiste
 
-Creas un bucket con una etiqueta, la cambias a mano en la consola y observas cómo `plan` lo detecta.
+Creas un bucket con una etiqueta, la cambias fuera de Terraform (consola o CLI) y observas cómo
+`plan` lo detecta.
 
 ### 1 — Aplica un recurso con etiqueta
 
@@ -39,11 +40,37 @@ terraform apply
 **Por qué:** Necesitas un recurso gestionado para luego provocar drift.
 **Resultado esperado:** El bucket existe con la etiqueta `Owner = terraform`.
 
-### 2 — Cambia algo a mano en la consola de AWS
+### 2 — Cambia algo fuera de Terraform
 
-**Acción:** En la consola de AWS → S3 → tu bucket → **Properties/Tags**, edita la etiqueta `Owner`
-a `manual`.
-**Por qué:** Simulas el caso real: alguien tocó la infraestructura fuera de Terraform.
+**Acción:** Elige **una** opción (mismo efecto: la etiqueta `Owner` pasa de `terraform` a `manual`).
+
+**Opción A — Consola de AWS**
+
+En la consola de AWS → S3 → tu bucket → **Properties/Tags**, edita la etiqueta `Owner` a `manual`.
+
+**Opción B — AWS CLI (sin consola)**
+
+Sustituye `TU-USUARIO` por el valor que usaste en el nombre del bucket:
+
+```bash
+aws s3api put-bucket-tagging \
+  --bucket curso-TU-USUARIO-drift-demo \
+  --tagging 'TagSet=[{Key=Owner,Value=manual}]'
+```
+
+Comprueba el cambio:
+
+```bash
+aws s3api get-bucket-tagging --bucket curso-TU-USUARIO-drift-demo
+```
+
+> [!NOTE]
+> `put-bucket-tagging` **sustituye** todas las etiquetas del bucket. En este lab solo declaras
+> `Owner`, así que el comando anterior es suficiente. Si hubiera más tags, inclúyelas todas en
+> `TagSet`.
+
+**Por qué:** Simulas el caso real: alguien tocó la infraestructura fuera de Terraform (panel web,
+script o CLI).
 **Resultado esperado:** En AWS la etiqueta vale `manual`; el estado de Terraform sigue diciendo `terraform`.
 
 ### 3 — Detecta el drift
